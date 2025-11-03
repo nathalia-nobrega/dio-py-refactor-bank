@@ -1,66 +1,152 @@
-menu = """
+balance = 0
+limit = 500
+statement = ""
+withdraw_count = 0
+last_acc_number = 0
+WITHDRAW_LIMIT = 3
+ACC_AGENCY = "0001"
 
-[d] Depositar
-[s] Sacar
-[e] Extrato
-[q] Sair
+# Using dictionaries instead of lists
+clients = {}
+accounts = {}
 
-=> """
+def withdrawal(*, balance, amount, statement, limit, withdraw_count, withdraw_limit):
+    exceeded_balance = amount > balance
+    exceeded_limit = amount > limit
+    exceeded_withdraws = withdraw_count >= withdraw_limit
 
-saldo = 0
-limite = 500
-extrato = ""
-numero_saques = 0
-LIMITE_SAQUES = 3
+    if exceeded_balance:
+        print("Operation failed! You don't have enough balance.")
+        return balance, statement, withdraw_count, False
 
-while True:
+    elif exceeded_limit:
+        print("Operation failed! The withdrawal amount exceeds the limit.")
+        return balance, statement, withdraw_count, False
 
-    opcao = input(menu)
+    elif exceeded_withdraws:
+        print("Operation failed! Maximum number of withdrawals exceeded.")
+        return balance, statement, withdraw_count, False
 
-    if opcao == "d":
-        valor = float(input("Informe o valor do depósito: "))
+    elif amount > 0:
+        balance -= amount
+        statement += f"Withdrawal: R$ {amount:.2f}\n"
+        withdraw_count += 1
+        retrieve_statement(balance, statement=statement)
+        return balance, statement, withdraw_count, True
+    else:
+        print("Operation failed! The informed amount is invalid.")
+        return balance, statement, withdraw_count, False
 
-        if valor > 0:
-            saldo += valor
-            extrato += f"Depósito: R$ {valor:.2f}\n"
 
-        else:
-            print("Operação falhou! O valor informado é inválido.")
+def deposit(balance, amount, statement, /):
+    if amount > 0:
+        balance += amount
+        statement += f"Deposit: R$ {amount:.2f}\n"
+        retrieve_statement(balance, statement=statement)
+        return balance, statement
+    else:
+        print("Operation failed! The informed amount is invalid.")
+        return False
 
-    elif opcao == "s":
-        valor = float(input("Informe o valor do saque: "))
 
-        excedeu_saldo = valor > saldo
+def retrieve_statement(balance, /, *, statement):
+    print("\n================ STATEMENT ================")
+    print("No transactions have been made." if not statement else statement)
+    print(f"\nBalance: R$ {balance:.2f}")
+    print("===========================================")
 
-        excedeu_limite = valor > limite
 
-        excedeu_saques = numero_saques >= LIMITE_SAQUES
+def register_client(clients):
+    cpf = input("What is your CPF? (only numbers) ").strip()
+    full_name = input("What is your full name? ")
+    address = input("What is your address? (street, number - neighborhood - city/state_abbreviation) ")
+    
+    if not cpf or not full_name.strip() or not address.strip():
+        print("Operation failed! Missing information for registering new user.")
+        return False
 
-        if excedeu_saldo:
-            print("Operação falhou! Você não tem saldo suficiente.")
+    if cpf in clients:
+        print("Operation failed! CPF already registered.")
+        return False
 
-        elif excedeu_limite:
-            print("Operação falhou! O valor do saque excede o limite.")
+    clients[cpf] = {
+        "full_name": full_name,
+        "address": address
+    }
 
-        elif excedeu_saques:
-            print("Operação falhou! Número máximo de saques excedido.")
+    print(f"==== [i] {full_name} was registered in the system ====")
+    return True
 
-        elif valor > 0:
-            saldo -= valor
-            extrato += f"Saque: R$ {valor:.2f}\n"
-            numero_saques += 1
 
-        else:
-            print("Operação falhou! O valor informado é inválido.")
+def create_checking_account(clients, accounts):
+    owner_cpf = input("What is the CPF of the owner of this account? (only numbers) ")
 
-    elif opcao == "e":
-        print("\n================ EXTRATO ================")
-        print("Não foram realizadas movimentações." if not extrato else extrato)
-        print(f"\nSaldo: R$ {saldo:.2f}")
-        print("==========================================")
+    if owner_cpf not in clients:
+        print("The informed CPF is not registered in the system.")
+        return False
 
-    elif opcao == "q":
-        break
+    global last_acc_number
+    last_acc_number += 1
+    accounts[last_acc_number] = {
+        "agency": ACC_AGENCY,
+        "owner_cpf": owner_cpf
+    }
+
+    owner_name = clients.get(owner_cpf)
+
+    print(f"==== [i] Account {last_acc_number} with owner {owner_name} was registered in the system ====")
+    return True
+
+
+def handle_option(option):
+    global balance, statement, withdraw_count
+    
+    if option == "u":
+        register_client(clients=clients)
+
+    elif option == "c":
+        create_checking_account(clients=clients, accounts=accounts)
+
+    elif option == "d":
+        amount = float(input("Enter the deposit amount: "))
+        balance, statement = deposit(balance, amount, statement)
+
+    elif option == "s":
+        amount = float(input("Enter the withdrawal amount: "))
+        balance, statement, withdraw_count, success = withdrawal(balance=balance, amount=amount, statement=statement, limit=limit, withdraw_count=withdraw_count, withdraw_limit=WITHDRAW_LIMIT)
+    
+    elif option == "e":
+        retrieve_statement(balance, statement=statement)
+
+    elif option == "q":
+        print("Exiting...")
+        return False
 
     else:
-        print("Operação inválida, por favor selecione novamente a operação desejada.")
+        print("Invalid operation, please select again.")
+    
+    return True
+
+
+def display_menu():
+    menu = """
+
+    [u] Create new user
+    [c] Create new checking account
+    [d] Deposit
+    [s] Withdraw
+    [e] Statement
+    [q] Quit
+
+    => """
+
+    return input(menu)
+
+def main():
+    running = True
+    while running:
+        option = display_menu()
+        running = handle_option(option)
+
+if __name__ == "__main__":
+    main()
